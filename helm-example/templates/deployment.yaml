@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "example-app.fullname" . }}
+  labels:
+    {{- include "example-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      {{- include "example-app.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "example-app.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: main
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - nginx
+            - -g
+            - $(CMD_ENV)
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            {{- range .Values.env | keys | sortAlpha }}
+            - name: {{ . }}
+              value: {{ index $.Values.env . | quote }}
+            {{- end }}
+            {{- toYaml .Values.podEnv | nindent 12 }}
+            {{- toYaml .Values.secretEnv | nindent 12 }}
+          envFrom:
+            {{- range .Values.envFromSecret }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          volumeMounts:
+            - name: example-volume
+              mountPath: /data
+            - name: log-volume
+              mountPath: /var/log/nginx
+            - name: site-config
+              mountPath: /etc/nginx/conf.d/
+          readinessProbe:
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.probes.startup | nindent 12 }}
+        - name: errlog
+          image: "{{ .Values.sidecar.image.repository }}:{{ .Values.sidecar.image.tag }}"
+          args:
+            {{- toYaml .Values.sidecar.args | nindent 12 }}
+          volumeMounts:
+            - name: log-volume
+              mountPath: /log
+      volumes:
+        - name: example-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.name }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: log-volume
+          emptyDir: {}
+        - name: site-config
+          configMap:
+            name: site-config

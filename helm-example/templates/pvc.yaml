@@ -1,0 +1,16 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.name }}
+  labels:
+    {{- include "example-app.labels" . | nindent 4 }}
+spec:
+  accessModes:
+  {{- range .Values.persistence.accessModes }}
+  - {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}

@@ -1,0 +1,143 @@
+# 副本数
+replicaCount: 1
+
+# 主容器
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# sidecar 容器
+sidecar:
+  image:
+    repository: busybox
+    tag: stable
+  args:
+    - "tail"
+    - "-n+1"
+    - "-F"
+    - /log/error.log
+
+# 资源限制
+resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+# 环境变量
+env:
+  EXAMPLE_ENV: "example-app-name"
+  CMD_ENV: "daemon off;"
+
+# Pod 信息注入
+podEnv:
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+
+# 从 Secret 注入的单个环境变量
+secretEnv:
+  - name: EXAMPLE_ENV_3
+    valueFrom:
+      secretKeyRef:
+        name: example-env
+        key: USERNAME
+
+# envFrom 引用整个 Secret
+envFromSecret:
+  - example-env
+
+# 探针配置
+probes:
+  readiness:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 30
+    successThreshold: 1
+    failureThreshold: 6
+    timeoutSeconds: 5
+    initialDelaySeconds: 0
+  liveness:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 300
+    successThreshold: 1
+    failureThreshold: 24
+    timeoutSeconds: 10
+    initialDelaySeconds: 0
+  startup:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 3
+    failureThreshold: 20
+    timeoutSeconds: 5
+
+# PVC
+persistence:
+  enabled: true
+  name: example-pvc
+  accessModes:
+    - ReadWriteOnce
+  size: 100Mi
+
+# Nginx 站点配置
+siteConfig:
+  serverName: "_"
+  root: /usr/share/nginx/html
+
+# Service
+service:
+  name: example
+  labels:
+    prom-metric-class: normal-metrics
+  ports:
+    http:
+      port: 80
+      targetPort: http
+    metrics:
+      port: 9090
+      targetPort: metrics
+
+# CronJob
+cronjob:
+  enabled: true
+  name: example-job
+  schedule: "0 0 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  restartPolicy: Never
+  image:
+    repository: busybox
+    tag: latest
+    pullPolicy: IfNotPresent
+  command:
+    - sh
+    - -c
+    - "echo Hello, Kubernetes! $(EXAMPLE_ENV_3) > /data/hello.txt"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "1Gi"
+
+# Ingress
+ingress:
+  enabled: true
+  name: internal
+  className: traefik-internal
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-internal-redirect-https@kubernetescrd
+  host: example.i.insec.cc
+
+# 私有镜像拉取凭证（可选）
+imagePullSecrets: []
+# - name: docker-registry-pull

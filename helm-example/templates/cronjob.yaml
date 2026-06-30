@@ -1,0 +1,51 @@
+{{- if .Values.cronjob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.cronjob.name }}
+  labels:
+    {{- include "example-app.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: {{ .Values.cronjob.restartPolicy }}
+          volumes:
+            - name: example-vol
+              persistentVolumeClaim:
+                claimName: {{ .Values.persistence.name }}
+            - name: my-tmp-dir
+              emptyDir: {}
+          containers:
+            - name: main
+              image: "{{ .Values.cronjob.image.repository }}:{{ .Values.cronjob.image.tag }}"
+              imagePullPolicy: {{ .Values.cronjob.image.pullPolicy }}
+              args:
+                {{- toYaml .Values.cronjob.command | nindent 16 }}
+              volumeMounts:
+                - mountPath: /data
+                  name: example-vol
+                - mountPath: /tmp
+                  name: my-tmp-dir
+              envFrom:
+                {{- range .Values.envFromSecret }}
+                - secretRef:
+                    name: {{ . }}
+                {{- end }}
+              env:
+                {{- range .Values.env | keys | sortAlpha }}
+                - name: {{ . }}
+                  value: {{ index $.Values.env . | quote }}
+                {{- end }}
+                {{- toYaml .Values.secretEnv | nindent 16 }}
+              resources:
+                {{- toYaml .Values.cronjob.resources | nindent 16 }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
