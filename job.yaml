@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: example-job
+spec:
+  schedule: "0 0 * * *"
+  successfulJobsHistoryLimit: 1  # 仅保留最近 1 个成功的 Job
+  failedJobsHistoryLimit: 2  # 仅保留最近 2 个失败的 Job
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: example-vol # 引用持久卷
+              persistentVolumeClaim:
+                claimName: example-pvc
+            - name: my-tmp-dir # 临时卷，不需要持久化
+              emptyDir: {}
+          restartPolicy: Never # or OnFailure
+          containers:
+            - name: main
+              image: busybox:latest
+              imagePullPolicy: IfNotPresent
+              args:
+                - sh
+                - -c
+                - "echo Hello, Kubernetes! $(EXAMPLE_ENV_3) > /data/hello.txt" # k8s 支持$(EXAMPLE_ENV_3)注入环境变量, 如果使用了shell也可以使用${EXAMPLE_ENV_3}
+              volumeMounts:
+              - mountPath: /data
+                name: example-vol
+              - mountPath: /tmp
+                name: my-tmp-dir
+              envFrom:
+                - secretRef:
+                    name: example-env # 将整个secret的所有Key设置为环境变量
+              env:
+                - name: EXAMPLE_ENV
+                  value: "example-value" # 直接设置环境变量
+                - name: EXAMPLE_ENV_3
+                  valueFrom:
+                    secretKeyRef:
+                      name: example-env
+                      key: USERNAME
+              resources:
+                requests:
+                  cpu: "100m"  # 0.1 CPU
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "1Gi"
+          # if you need to pull images from a private registry, uncomment the following lines
+          # imagePullSecrets:
+          #   - name: docker-registry-pull

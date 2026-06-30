@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: example-pvc
+  labels:
+    app: example
+spec:
+  accessModes:
+  - ReadWriteOnce #不用改，不影响多次挂载, 这个表示只能在一个物理机上挂载
+  resources:
+    requests:
+      storage: 100Mi

@@ -1,0 +1,13 @@
+resources:
+  - pvc.yaml
+  - deployment.yaml
+  - job.yaml
+  - service.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: site-config
+    files:
+      - example-site.conf
+    options:
+      disableNameSuffixHash: true

@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: internal
+  annotations:
+    # 跳转https， 如果是公网访问需要改成 traefik-internal-redirect-https@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-internal-redirect-https@kubernetescrd
+spec:
+  # 通过内网网关访问, 如果是公网访问要改成 traefik-public
+  ingressClassName: traefik-internal
+  rules:
+    - host: example.i.insec.cc
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: example
+                port:
+                  name: http
